@@ -7,19 +7,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/* ================= USER ================= */
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
   password  String
+
   tasks     Task[]
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
 }
 
+/* ================= TASK ================= */
 model Task {
   id        Int      @id @default(autoincrement())
   title     String
   status    Boolean  @default(false)
+
+  remarks   String?  @db.Text   // optional notes / blockers
+
   userId    Int
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
 }

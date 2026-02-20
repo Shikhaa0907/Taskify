@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
+import jwt, { JwtPayload } from "jsonwebtoken";
 
-interface JwtPayload {
+/* Extend Request type safely */
+interface AuthPayload extends JwtPayload {
   userId: number;
 }
 
@@ -10,23 +11,39 @@ export const authenticate = (
   res: Response,
   next: NextFunction
 ) => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ message: "Authorization token missing" });
-  }
-
-  const token = authHeader.split(" ")[1];
-
   try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        message: "Authorization token missing",
+      });
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    if (!process.env.ACCESS_TOKEN_SECRET) {
+      console.error("ACCESS_TOKEN_SECRET is not set ❌");
+      return res.status(500).json({
+        message: "Server configuration error",
+      });
+    }
+
     const decoded = jwt.verify(
       token,
-      process.env.ACCESS_TOKEN_SECRET!
-    ) as JwtPayload;
+      process.env.ACCESS_TOKEN_SECRET
+    ) as AuthPayload;
 
-    (req as any).user = decoded;
+    /* Attach user info to request */
+    (req as any).user = {
+      userId: decoded.userId,
+    };
+
     next();
-  } catch {
-    return res.status(401).json({ message: "Invalid or expired token" });
+  } catch (error) {
+    console.error("AUTH MIDDLEWARE ERROR ❌", error);
+    return res.status(401).json({
+      message: "Invalid or expired token",
+    });
   }
 };
